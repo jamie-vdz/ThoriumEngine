@@ -52,6 +52,19 @@ void ParseCmdLine(LPSTR cmd, TArray<FString>& out)
 	}
 }
 
+void AttachToInheritedConsole() {
+	// 1. Attach to the parent process's console session
+	if (AttachConsole(ATTACH_PARENT_PROCESS)) {
+		// 2. Re-open standard streams to point to the newly attached console
+		freopen_s((FILE**)stdin, "CONIN$", "r", stdin);
+		freopen_s((FILE**)stdout, "CONOUT$", "w", stdout);
+		freopen_s((FILE**)stderr, "CONOUT$", "w", stderr);
+
+		// 3. Sync standard C++ streams (cin, cout, cerr) if using them
+		std::ios::sync_with_stdio();
+	}
+}
+
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, int showCmd)
 #else
 int main(int argc, char** argv)
@@ -66,6 +79,8 @@ int main(int argc, char** argv)
 	int argc = (int)_args.Size();
 	for (int i = 0; i < argc; i++)
 		argv[i] = (char*)_args[i].c_str();
+
+	AttachToInheritedConsole();
 #endif
 
 	// Parse arguments
@@ -114,7 +129,7 @@ int main(int argc, char** argv)
 		return 0;
 	}
 
-	std::cout << "Path: " << targetPath.c_str() << std::endl;
+	//std::cout << "Path: " << targetPath.c_str() << std::endl;
 
 	bool bIgnoreTime = false;
 	for (SizeType i = 2; i < argc; i++)
@@ -306,17 +321,19 @@ int main(int argc, char** argv)
 			header.FileName = entry.path().stem().generic_string();
 			header.FilePath = entry.path().generic_string();
 
-			if (CTokenParser::ParseHeader(header) > 0)
-			{
-				std::cout << "Failed to parse header: " << header.FilePath.c_str() << std::endl;
-				continue;
+			try {
+				if (CTokenParser::ParseHeader(header) > 0)
+				{
+					std::cout << "Failed to parse header: " << header.FilePath.c_str() << std::endl;
+					continue;
+				}
+				if (!header.bEmpty)
+					Headers.Add(header);
 			}
-
-			if (!header.bEmpty)
-				Headers.Add(header);
+			catch (std::exception& e) { std::cerr << "error when parsing file " << header.FilePath.c_str() << ": " << e.what() << std::endl; }
 		}
 	}
-	catch (std::exception& e) { std::cerr << "warning: " << e.what() << "\n"; }
+	catch (std::exception& e) { std::cerr << "error: " << e.what() << "\n"; }
 
 	if (test == 1)
 	{

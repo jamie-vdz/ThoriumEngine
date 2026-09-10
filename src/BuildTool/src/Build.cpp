@@ -320,17 +320,28 @@ int GenerateCMakeProject(const FCompileConfig& config)
 #if _WIN32
 		PROCESS_INFORMATION ht{};
 		STARTUPINFO si{};
+		si.dwFlags = STARTF_USESTDHANDLES;
+		si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+		si.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
+		si.hStdError = GetStdHandle(STD_ERROR_HANDLE);
 		si.cb = sizeof(si);
 		FString htCmd = enginePath + "/bin/win64/HeaderTool.exe \"" + targetPath + "\" -pt " + (bIsEngine ? "0" : (bIsGame ? "1" : "3"));
 		
+		SetHandleInformation(si.hStdInput, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
+    	SetHandleInformation(si.hStdOutput, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
+    	SetHandleInformation(si.hStdError, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
+
 		if (bIsExe)
 			htCmd += " -target \"" + targetBuild + "\"";
 
-		if (!CreateProcessA(NULL, (char*)htCmd.c_str(), nullptr, nullptr, false, 0, nullptr, nullptr, &si, &ht))
+		if (!CreateProcessA(NULL, (char*)htCmd.c_str(), nullptr, nullptr, true, 0, nullptr, nullptr, &si, &ht))
 		{
 			std::cerr << "error: failed to run HeaderTool!\n";
 			return 1;
 		}
+		WaitForSingleObject(ht.hProcess, INFINITE);
+        CloseHandle(ht.hProcess);
+        CloseHandle(ht.hThread);
 #else
 		FString p = enginePath + "/bin/linux/HeaderTool";
 
@@ -359,7 +370,7 @@ int GenerateCMakeProject(const FCompileConfig& config)
 	}
 
 	using namespace std::chrono_literals;
-	std::this_thread::sleep_for(10ms);
+	std::this_thread::sleep_for(200ms);
 
 	auto* includeOut = buildCfg.GetValue("IncludeOut", false);
 	if (includeOut)
