@@ -413,6 +413,8 @@ int GenerateCMakeProject(const FCompileConfig& config)
 			stream << "set(CMAKE_BUILD_TYPE Release)\n";
 	}
 
+	stream << "set(CMAKE_DEBUG_POSTFIX \"\")\n";
+
 	TArray<FString> files;
 	TArray<FString> generatedFiles;
 	GetCppFilesInDir(buildCfg, targetPath + "/src", files, true);

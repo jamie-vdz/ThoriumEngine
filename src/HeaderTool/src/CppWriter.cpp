@@ -845,7 +845,7 @@ bool CParser::WriteModuleData()
 	{
 		for (auto c : header.classes)
 		{
-			uint8 type = c.classMacro.type == FMacro::CLASS;
+			uint8 type = c.classMacro.type != FMacro::STRUCT;
 			stream << &type;
 			stream << c.name;
 		}
